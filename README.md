@@ -1,4 +1,13 @@
 # Ransomware Encryption Guide (R.E.G)
+_________
+
+<h3 align="center">
+  <a href="" target="_blank" rel="noopener noreferrer">https://ironbranded.github.io/Ransomware-Encryption-Guide/
+    🟢 TRY THE GUIDE 🟢
+  </a>
+</h3>
+
+________
 
 A five-module interactive training site on ransomware encryption, built for DFIR
 analysts. Static site, no build step — but modular, so a change to one module,
