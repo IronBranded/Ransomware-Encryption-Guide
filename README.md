@@ -2,7 +2,7 @@
 _________
 
 <h3 align="center">
-  <a href="" target="_blank" rel="noopener noreferrer">https://ironbranded.github.io/Ransomware-Encryption-Guide/
+  <a href="https://ironbranded.github.io/Ransomware-Encryption-Guide" target="_blank" rel="noopener noreferrer">
     🟢 TRY THE GUIDE 🟢
   </a>
 </h3>
