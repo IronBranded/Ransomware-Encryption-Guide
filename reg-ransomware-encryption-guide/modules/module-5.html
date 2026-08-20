@@ -1,0 +1,183 @@
+<p class="font-mono text-xs tracking-widest text-accent mb-3">CASE FILE 05 · DFIR &amp; REPORTING</p>
+<h1 class="font-display text-3xl sm:text-4xl font-bold text-ink mb-3">DFIR Contextualization &amp; Reporting</h1>
+<p class="text-muted text-base mb-6 max-w-2xl">From live host to a report a legal team and an executive can both act on.</p>
+<p class="text-xs text-muted mb-10 max-w-2xl">This module's evidence-priority ordering follows the structure in NIST's current incident-response guidance, <a href="https://csrc.nist.gov/pubs/sp/800/61/r3/final" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">SP 800-61 Rev. 3</a> (2025). For prevention and response best practices beyond this guide's scope, see the joint <a href="https://www.cisa.gov/stopransomware/ransomware-guide" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">CISA/FBI/NSA/MS-ISAC #StopRansomware Guide</a>.</p>
+
+<h2 class="font-display text-xl font-semibold text-ink mb-4">Evidence collection priority</h2>
+<ol class="list-none space-y-3 mb-10">
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">01</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">Memory capture</p>
+      <p class="text-sm text-muted leading-relaxed">The AES session key exists in plaintext in RAM for a brief window before it is wrapped and purged. Image memory before the process exits or that region is reused — this step loses value by the minute.</p>
+    </div>
+  </li>
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">02</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">MFT ($MFT) analysis</p>
+      <p class="text-sm text-muted leading-relaxed">NTFS timestamps for creation, modification, and rename. A tight cluster of mass rewrite events builds a precise encryption timeline, and can recover original filenames after a full-rename strategy.</p>
+    </div>
+  </li>
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">03</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">USN Journal</p>
+      <p class="text-sm text-muted leading-relaxed">Finer-grained than MFT timestamps alone — reconstructs exactly which files were touched, in what order, and helps correlate against partial or intermittent encryption patterns.</p>
+    </div>
+  </li>
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">04</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">VSS recovery evaluation</p>
+      <p class="text-sm text-muted leading-relaxed">Check vssadmin list shadows before assuming shadow copies are gone. Deletion routines fail for mundane reasons — permissions, early termination — and a surviving shadow is a free recovery path.</p>
+    </div>
+  </li>
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">05</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">$LogFile &amp; registry hives</p>
+      <p class="text-sm text-muted leading-relaxed">The NTFS transaction log supports granular timeline work. HKLM\SYSTEM and HKLM\SOFTWARE can reveal persistence, DefaultIcon-style artifacts, service tampering, and execution evidence.</p>
+    </div>
+  </li>
+</ol>
+
+<h2 class="font-display text-xl font-semibold text-ink mb-4">Determining feasibility of decryption</h2>
+<div class="prose-body mb-3">
+  <p>Recovery without paying is possible only when the implementation itself has a flaw. Look for:</p>
+</div>
+<div class="grid sm:grid-cols-2 gap-3 mb-6">
+  <div class="bg-surface border border-edge rounded-xl p-4">
+    <p class="text-sm font-medium text-ink mb-1">Weak or predictable PRNG seeding</p>
+    <p class="text-xs text-muted leading-relaxed">A key derived from a low-entropy seed — like system time — can be brute-forced if the approximate run time is known.</p>
+  </div>
+  <div class="bg-surface border border-edge rounded-xl p-4">
+    <p class="text-sm font-medium text-ink mb-1">Hardcoded or reused keys</p>
+    <p class="text-xs text-muted leading-relaxed">The single biggest win when it happens — one recovered key can unlock every victim protected by the same static key.</p>
+  </div>
+  <div class="bg-surface border border-edge rounded-xl p-4">
+    <p class="text-sm font-medium text-ink mb-1">Un-flushed key buffers in memory</p>
+    <p class="text-xs text-muted leading-relaxed">If the purge-from-RAM step isn't actually implemented correctly, a memory capture can recover the key directly.</p>
+  </div>
+  <div class="bg-surface border border-edge rounded-xl p-4">
+    <p class="text-sm font-medium text-ink mb-1">Implementation bugs</p>
+    <p class="text-xs text-muted leading-relaxed">Nonce or IV reuse with a stream cipher, or errors in the RSA padding scheme, can undermine an otherwise sound design.</p>
+  </div>
+</div>
+<div class="bg-surface2 border border-warn/25 rounded-xl p-4 mb-10">
+  <p class="text-xs text-slate-300 leading-relaxed"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-warn inline -mt-0.5 mr-1"></i>Actively maintained families — DeadLock included — shouldn't be assumed to carry these flaws. Feasibility is decided per-family from actual analysis, never assumed by default.</p>
+</div>
+
+<!-- Widget 4: Report Builder -- self-contained logic in js/widgets/reportBuilder.js,
+     family dropdown derives from $store.data so it can't drift from the decision tree -->
+<div x-data="reportBuilder" class="bg-surface border border-edge rounded-2xl overflow-hidden">
+  <div class="px-5 sm:px-6 py-4 border-b border-edge">
+    <div class="flex items-center gap-2.5 mb-1">
+      <i data-lucide="file-output" class="w-[18px] h-[18px] text-accent"></i>
+      <h3 class="font-display font-semibold text-ink text-sm">Interactive: DFIR Report Builder</h3>
+    </div>
+    <p class="text-xs text-muted">Fill in what you know — generates a structured Markdown summary you can paste into a ticket or brief</p>
+  </div>
+
+  <div class="p-5 sm:p-6 grid lg:grid-cols-2 gap-8">
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-muted mb-1.5" for="rf-org">Organization <span class="text-muted">(optional)</span></label>
+        <input id="rf-org" x-model="report.org" type="text" placeholder="Acme Manufacturing Ltd." class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink placeholder:text-muted">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-muted mb-1.5" for="rf-analyst">Analyst</label>
+          <input id="rf-analyst" x-model="report.analyst" type="text" placeholder="J. Rivera" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink placeholder:text-muted">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-muted mb-1.5" for="rf-date">Discovery date</label>
+          <input id="rf-date" x-model="report.date" type="date" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-muted mb-1.5" for="rf-family">Ransomware family</label>
+        <select id="rf-family" x-model="report.family" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink">
+          <template x-for="f in reportFamilyOptions" :key="f"><option :value="f" x-text="f"></option></template>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-muted mb-1.5" for="rf-scheme">Cryptographic scheme</label>
+        <select id="rf-scheme" x-model="report.scheme" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink">
+          <option>Unknown — under analysis</option>
+          <option>AES-256 + RSA-2048 hybrid</option>
+          <option>Curve25519 + XChaCha20 hybrid</option>
+          <option>ChaCha20 + RSA hybrid</option>
+          <option>AES + ECC (Curve25519) hybrid</option>
+          <option>Other / mixed</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-muted mb-1.5" for="rf-key">Key recovery status</label>
+        <select id="rf-key" x-model="report.keyStatus" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink">
+          <option>No recovery path identified</option>
+          <option>Partial — some files recoverable via VSS or backups</option>
+          <option>Full — implementation flaw identified</option>
+          <option>Under investigation</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-muted mb-1.5" for="rf-vector">Initial access vector</label>
+        <select id="rf-vector" x-model="report.vector" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink">
+          <option>Phishing</option>
+          <option>Exploited public-facing application or VPN</option>
+          <option>Valid accounts — credential compromise</option>
+          <option>RDP brute-force</option>
+          <option>Supply chain / third party</option>
+          <option>Unknown</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-medium text-muted mb-1.5" for="rf-systems">Systems affected</label>
+          <input id="rf-systems" x-model="report.systems" type="text" placeholder="~140 endpoints, 6 servers" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink placeholder:text-muted">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-muted mb-1.5" for="rf-exfil">Data exfiltration</label>
+          <select id="rf-exfil" x-model="report.exfil" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink">
+            <option>Confirmed</option>
+            <option>Suspected, unconfirmed</option>
+            <option>No evidence found</option>
+            <option>Unknown</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-muted mb-1.5" for="rf-notes">Additional notes <span class="text-muted">(optional)</span></label>
+        <textarea id="rf-notes" x-model="report.notes" rows="3" placeholder="Anything else worth a line in the summary…" class="focus-ring w-full bg-base border border-edge rounded-lg px-3 py-2 text-sm text-ink placeholder:text-muted resize-y"></textarea>
+      </div>
+    </div>
+
+    <div class="flex flex-col min-h-0">
+      <div class="flex items-center justify-between mb-1.5">
+        <p class="text-[10px] font-mono text-muted uppercase tracking-wide">Live preview — Markdown</p>
+        <button @click="copyReport()" class="focus-ring text-xs font-medium px-3 py-1.5 rounded-md border border-edge text-muted hover:text-ink hover:border-faint transition-colors flex items-center gap-1.5">
+          <span class="w-3.5 h-3.5 inline-flex">
+            <span x-show="!reportCopied"><i data-lucide="copy" class="w-3.5 h-3.5"></i></span>
+            <span x-show="reportCopied"><i data-lucide="check" class="w-3.5 h-3.5 text-success"></i></span>
+          </span>
+          <span x-text="reportCopied ? 'Copied' : 'Copy'"></span>
+        </button>
+      </div>
+      <pre class="flex-1 bg-base border border-edge rounded-lg p-4 text-[11px] font-mono text-slate-300 overflow-auto whitespace-pre-wrap leading-relaxed min-h-[420px] max-h-[620px]" x-text="generatedReport" aria-live="polite"></pre>
+    </div>
+  </div>
+</div>
+
+<div class="mt-12 flex justify-between items-center">
+  <button @click="$store.shell.navigateTo('module4')" class="focus-ring inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink px-4 py-2.5 rounded-lg transition-colors">
+    <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+  </button>
+  <button @click="$store.shell.markComplete('module5')" class="focus-ring inline-flex items-center gap-2 text-sm font-semibold bg-success text-base px-5 py-2.5 rounded-lg hover:bg-success-dim transition-colors">
+    <i data-lucide="flag" class="w-4 h-4"></i> Mark course complete
+  </button>
+</div>
+<p x-show="$store.shell.progress.module1 && $store.shell.progress.module2 && $store.shell.progress.module3 && $store.shell.progress.module4 && $store.shell.progress.module5" x-cloak class="text-center text-sm text-success mt-6 flex items-center justify-center gap-2">
+  <i data-lucide="party-popper" class="w-4 h-4"></i> All five case files closed. Nice work.
+</p>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ransomware Encryption Guide (R.E.G) — Interactive Field Guide</title>
+<meta name="description" content="R.E.G — an interactive guide to how ransomware encrypts data and how DFIR analysts identify, triage, and report on it.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2338bdf8' stroke-width='2'%3E%3Cpath d='M12 2 4 5v6c0 5.2 3.4 9.7 8 11 4.6-1.3 8-5.8 8-11V5l-8-3z'/%3E%3Cpath d='M12 8v4M12 16h.01'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/[email protected]/dist/umd/lucide.js"></script>
+<script src="js/tailwind.config.js"></script>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-base text-ink font-body antialiased">
+
+<!-- Visible immediately (no Alpine/fetch dependency); removed by js/bootstrap.js
+     once modules/*.html and data/*.json have loaded. -->
+<div id="boot-loading" class="min-h-screen flex items-center justify-center">
+  <p class="font-mono text-xs text-muted tracking-widest">LOADING FIELD GUIDE…</p>
+</div>
+
+<!-- Everything below stays hidden (x-cloak) until bootstrap.js has injected all
+     module content AND started Alpine -- avoids a flash of unprocessed markup
+     (empty nav, wrong mobile/desktop chrome) during the fetch. -->
+<div id="app-shell" x-data="{}" x-cloak>
+
+<a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[100] focus:bg-accent focus:text-base focus:px-4 focus:py-2 focus:rounded-md focus:font-semibold">Skip to content</a>
+
+<!-- Ambient signature strip -->
+<div class="scanline fixed top-0 left-0 z-40" aria-hidden="true">
+  <template x-for="(c,i) in $store.shell.noiseCells" :key="i">
+    <i :style="`background:${c.color}; --d:${c.delay}s;`"></i>
+  </template>
+</div>
+
+<!-- Mobile top bar -->
+<header class="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-edge bg-surface/95 backdrop-blur px-4 py-3 mt-[5px]">
+  <button @click="$store.shell.mobileNavOpen = true" class="focus-ring p-2 -ml-2 rounded-md text-ink" aria-label="Open module navigation" :aria-expanded="$store.shell.mobileNavOpen">
+    <i data-lucide="menu" class="w-5 h-5"></i>
+  </button>
+  <div class="flex items-center gap-2 min-w-0">
+    <i data-lucide="shield-alert" class="w-4 h-4 text-accent shrink-0"></i>
+    <span class="font-display font-semibold text-sm truncate">R.E.G</span>
+  </div>
+  <div class="text-xs font-mono text-muted tabular-nums" x-text="$store.shell.progressPercent + '%'"></div>
+</header>
+
+<!-- Mobile drawer backdrop -->
+<div x-show="$store.shell.mobileNavOpen" x-transition.opacity class="lg:hidden fixed inset-0 bg-black/60 z-40" @click="$store.shell.mobileNavOpen=false" x-cloak></div>
+
+<div class="lg:flex">
+  <!-- Sidebar / drawer -->
+  <aside
+    class="fixed lg:sticky top-0 left-0 h-dvh w-[280px] shrink-0 bg-surface border-r border-edge z-50 lg:z-10 flex flex-col transition-transform duration-300 ease-out"
+    :class="$store.shell.mobileNavOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
+    aria-label="Module navigation"
+  >
+    <div class="flex items-center justify-between px-5 pt-5 pb-4 border-b border-edge">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-md bg-accent/15 border border-accent/30 flex items-center justify-center">
+          <i data-lucide="shield-alert" class="w-[18px] h-[18px] text-accent"></i>
+        </div>
+        <div class="leading-tight">
+          <p class="font-display font-semibold text-[15px]">Ransomware Encryption Guide</p>
+          <p class="text-[11px] text-muted font-mono">R.E.G · field guide v1.0</p>
+        </div>
+      </div>
+      <button @click="$store.shell.mobileNavOpen=false" class="lg:hidden focus-ring p-1.5 rounded-md text-muted hover:text-ink" aria-label="Close navigation">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Modules">
+      <template x-for="m in $store.shell.modules" :key="m.id">
+        <button
+          @click="$store.shell.navigateTo(m.id)"
+          class="focus-ring w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors group"
+          :class="$store.shell.currentModule === m.id ? 'bg-accent/10 text-ink' : 'text-muted hover:bg-surface2 hover:text-ink'"
+          :aria-current="$store.shell.currentModule === m.id ? 'page' : false"
+        >
+          <span class="w-6 h-6 rounded-md flex items-center justify-center shrink-0 border"
+                :class="$store.shell.progress[m.id] ? 'bg-success/15 border-success/40 text-success' : ($store.shell.currentModule===m.id ? 'border-accent/50 text-accent' : 'border-edge text-muted')">
+            <span x-show="$store.shell.progress[m.id]"><i data-lucide="check" class="w-3.5 h-3.5"></i></span>
+            <span x-show="!$store.shell.progress[m.id]" class="text-[10px] font-mono" x-text="m.num"></span>
+          </span>
+          <span class="min-w-0">
+            <span class="block text-[13px] font-medium truncate" x-text="m.title"></span>
+            <span class="block text-[11px] font-mono text-muted truncate" x-text="m.tag"></span>
+          </span>
+        </button>
+      </template>
+
+      <!-- Not part of the module sequence -- deliberately unnumbered, no
+           completion state, always accessible. -->
+      <div class="pt-3 mt-2 border-t border-edge">
+        <button
+          @click="$store.shell.navigateTo('reference')"
+          class="focus-ring w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
+          :class="$store.shell.currentModule === 'reference' ? 'bg-accent/10 text-ink' : 'text-muted hover:bg-surface2 hover:text-ink'"
+          :aria-current="$store.shell.currentModule === 'reference' ? 'page' : false"
+        >
+          <span class="w-6 h-6 rounded-md flex items-center justify-center shrink-0 border"
+                :class="$store.shell.currentModule === 'reference' ? 'border-accent/50 text-accent' : 'border-edge text-muted'">
+            <i data-lucide="book-open" class="w-3.5 h-3.5"></i>
+          </span>
+          <span class="min-w-0">
+            <span class="block text-[13px] font-medium truncate">Glossary &amp; Sources</span>
+            <span class="block text-[11px] font-mono text-muted truncate">terms &amp; citations</span>
+          </span>
+        </button>
+      </div>
+    </nav>
+
+    <div class="px-5 py-4 border-t border-edge">
+      <div class="flex items-center justify-between text-[11px] font-mono text-muted mb-1.5">
+        <span>PROGRESS</span>
+        <span x-text="$store.shell.progressPercent + '%'"></span>
+      </div>
+      <div class="h-1.5 rounded-full bg-surface2 overflow-hidden" role="progressbar" :aria-valuenow="$store.shell.progressPercent" aria-valuemin="0" aria-valuemax="100" aria-label="Overall course progress">
+        <div class="h-full bg-gradient-to-r from-accent to-success rounded-full transition-all duration-500" :style="`width:${$store.shell.progressPercent}%`"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main id="main-content" class="flex-1 min-w-0">
+    <div class="max-w-4xl mx-auto px-5 sm:px-8 py-10 sm:py-14">
+
+      <!-- Each container is filled by js/bootstrap.js with the matching modules/module-N.html
+           fragment, then Alpine starts once and processes the fully-assembled page. Editing a
+           module's content only ever means editing that one fragment file. -->
+      <section id="module1-container" x-show="$store.shell.currentModule === 'module1'" x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"></section>
+      <section id="module2-container" x-show="$store.shell.currentModule === 'module2'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"></section>
+      <section id="module3-container" x-show="$store.shell.currentModule === 'module3'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"></section>
+      <section id="module4-container" x-show="$store.shell.currentModule === 'module4'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"></section>
+      <section id="module5-container" x-show="$store.shell.currentModule === 'module5'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"></section>
+      <section id="reference-container" x-show="$store.shell.currentModule === 'reference'" x-cloak x-transition:enter="transition ease-out duration-300" x-transition:enter-start="opacity-0 translate-y-2" x-transition:enter-end="opacity-100 translate-y-0"></section>
+
+    </div>
+  </main>
+</div>
+
+</div><!-- /#app-shell -->
+
+<!-- ============================================================
+     Boot sequence. These three files only register 'alpine:init'
+     listeners -- harmless to load now. Alpine itself is loaded
+     dynamically by bootstrap.js, AFTER the fetch+inject step, so
+     it only ever sees a fully-assembled page. See js/bootstrap.js.
+     ============================================================ -->
+<script src="js/store.shell.js"></script>
+<script src="js/store.data.js"></script>
+<script src="js/widgets/visualizer.js"></script>
+<script src="js/widgets/entropy.js"></script>
+<script src="js/widgets/decisionTree.js"></script>
+<script src="js/widgets/reportBuilder.js"></script>
+<script src="js/widgets/reference.js"></script>
+<script src="js/bootstrap.js"></script>
+
+<!-- Offline support. Requires HTTPS (or localhost) -- silently does nothing
+     on a plain http:// local preview, which is expected and harmless; the
+     app itself doesn't depend on this registration succeeding. -->
+<script>
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch((err) => {
+        console.warn('Service worker registration skipped:', err.message);
+      });
+    });
+  }
+</script>
+</body>
+</html>

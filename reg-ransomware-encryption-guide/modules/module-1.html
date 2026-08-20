@@ -1,0 +1,209 @@
+<p class="font-mono text-xs tracking-widest text-accent mb-3">CASE FILE 01 · FOUNDATIONS</p>
+<h1 class="font-display text-3xl sm:text-4xl font-bold text-ink mb-3">Fundamentals of Encryption</h1>
+<p class="text-muted text-base mb-10 max-w-2xl">What ransomware actually does to a file, explained from first principles — no math background required.</p>
+
+<div class="prose-body">
+  <p>Encryption turns readable data into unreadable data using a mathematical key. Almost everything ransomware does comes down to two different ways of handling that key.</p>
+  <p>Here's the smallest possible version of the idea. Shift every letter in a message forward by three places: "HELLO" becomes "KHOOR." The <em>rule</em> — shift by some amount — is the <strong>algorithm</strong>. The number three is the <strong>key</strong>. Anyone who knows both can read the message; anyone who only sees "KHOOR" can't, unless they guess the key. Real encryption is the same basic idea — an algorithm plus a key — just with math complex enough that guessing the key isn't remotely feasible. Everything else in this module is really about how ransomware chooses, generates, and protects that key.</p>
+</div>
+
+<h2 class="font-display text-xl font-semibold text-ink mt-10 mb-4">Two ways to hand out a key</h2>
+<div class="grid sm:grid-cols-2 gap-4 mb-8">
+  <div class="bg-surface border border-edge rounded-xl p-5">
+    <div class="w-9 h-9 rounded-lg bg-accent/10 border border-accent/30 flex items-center justify-center mb-3">
+      <i data-lucide="key-round" class="w-[18px] h-[18px] text-accent"></i>
+    </div>
+    <h3 class="font-display font-semibold text-ink mb-1.5">A shared padlock</h3>
+    <p class="text-sm text-muted leading-relaxed">One physical key locks and unlocks the same box. Fast and simple — but whoever holds a copy of that key can open every box it's ever locked. If the key leaks, everything it protects is exposed at once. This is <strong>symmetric</strong> encryption.</p>
+  </div>
+  <div class="bg-surface border border-edge rounded-xl p-5">
+    <div class="w-9 h-9 rounded-lg bg-success/10 border border-success/30 flex items-center justify-center mb-3">
+      <i data-lucide="lock" class="w-[18px] h-[18px] text-success"></i>
+    </div>
+    <h3 class="font-display font-semibold text-ink mb-1.5">A two-key drop box</h3>
+    <p class="text-sm text-muted leading-relaxed">Anyone can drop a letter through the slot and seal it — that's the <strong>public</strong> key, safe to hand to a stranger since it only locks. Only the matching <strong>private</strong> key opens the box. This is <strong>asymmetric</strong> encryption.</p>
+  </div>
+</div>
+
+<h2 class="font-display text-xl font-semibold text-ink mt-12 mb-4">Symmetric vs. asymmetric, in practice</h2>
+<div class="overflow-x-auto -mx-5 sm:mx-0 mb-6">
+  <table class="w-full text-sm border-collapse min-w-[560px]">
+    <thead>
+      <tr class="text-left text-muted font-mono text-[11px] uppercase tracking-wide">
+        <th class="px-4 py-2 border-b border-edge" scope="col"><span class="sr-only">Property</span></th>
+        <th class="px-4 py-2 border-b border-edge" scope="col">Symmetric</th>
+        <th class="px-4 py-2 border-b border-edge" scope="col">Asymmetric</th>
+      </tr>
+    </thead>
+    <tbody class="text-muted">
+      <tr>
+        <th class="px-4 py-3 border-b border-edge/60 font-medium text-ink text-left" scope="row">Common algorithms</th>
+        <td class="px-4 py-3 border-b border-edge/60 font-mono text-xs text-accent">AES-256, ChaCha20</td>
+        <td class="px-4 py-3 border-b border-edge/60 font-mono text-xs text-success">RSA-2048, ECC / Curve25519</td>
+      </tr>
+      <tr>
+        <th class="px-4 py-3 border-b border-edge/60 font-medium text-ink text-left" scope="row">Speed</th>
+        <td class="px-4 py-3 border-b border-edge/60">Very fast — gigabytes per second on modern hardware</td>
+        <td class="px-4 py-3 border-b border-edge/60">Orders of magnitude slower; the underlying math doesn't scale to bulk data</td>
+      </tr>
+      <tr>
+        <th class="px-4 py-3 border-b border-edge/60 font-medium text-ink text-left" scope="row">Key handling</th>
+        <td class="px-4 py-3 border-b border-edge/60">One key does both jobs — it must stay secret everywhere it exists</td>
+        <td class="px-4 py-3 border-b border-edge/60">Public half can be distributed freely; only the private half must stay secret</td>
+      </tr>
+      <tr>
+        <th class="px-4 py-3 font-medium text-ink text-left" scope="row">Core weakness</th>
+        <td class="px-4 py-3">A single point of failure — one leaked key, total compromise</td>
+        <td class="px-4 py-3">Computationally expensive; impractical for encrypting large volumes directly</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+<p class="text-xs text-muted mb-8">AES is formally defined by NIST in <a href="https://csrc.nist.gov/pubs/fips/197/final" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">FIPS 197</a>; RSA is one of the algorithms in NIST's <a href="https://csrc.nist.gov/pubs/fips/186-5/final" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">FIPS 186-5</a>. These aren't ransomware-specific — they're the same standards banks and governments use.</p>
+
+<div class="bg-surface2 border border-accent/25 rounded-xl p-5 mb-10">
+  <div class="flex gap-3">
+    <i data-lucide="calculator" class="w-[18px] h-[18px] text-accent shrink-0 mt-0.5"></i>
+    <div>
+      <p class="text-sm font-semibold text-ink mb-1">Why 256 bits?</p>
+      <p class="text-sm text-slate-300 leading-relaxed">AES-256 has 2²⁵⁶ possible keys — a number so large that "a lot" undersells it. Even a hypothetical computer checking a trillion trillion keys every second, running since the universe began, would still be nowhere close to trying them all. That's not defense in depth; a correctly generated 256-bit key genuinely isn't findable by guessing. It's exactly why attackers don't try to break the encryption itself — they go after the <em>key</em>, wherever it might still be sitting in memory (Module 5).</p>
+    </div>
+  </div>
+</div>
+
+<h2 class="font-display text-xl font-semibold text-ink mb-2">The hybrid model: how ransomware actually works</h2>
+<div class="prose-body">
+  <p>Neither approach alone fits an attacker's needs. Encrypting a whole environment with RSA alone would take far too long — slow enough that defenders could interrupt the attack before it finished. Encrypting with AES alone solves the speed problem, but creates a new one: that AES key has to exist <em>somewhere</em> accessible to the malware, which means a defender who captures memory or reverse-engineers the sample can often recover it.</p>
+  <p>So ransomware combines both, using each for what it's good at:</p>
+</div>
+
+<ol class="list-none space-y-3 my-6">
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">01</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">Generate a local AES-256 session key</p>
+      <p class="text-sm text-muted leading-relaxed">Created in memory, unique to this run — never written to disk in plaintext.</p>
+    </div>
+  </li>
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">02</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">Encrypt the file payload</p>
+      <p class="text-sm text-muted leading-relaxed">Every targeted file is transformed with that key, fast enough to process an entire environment in minutes.</p>
+    </div>
+  </li>
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">03</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">Wrap the AES key with the attacker's RSA public key</p>
+      <p class="text-sm text-muted leading-relaxed">The public key is embedded in the binary at compile time; the wrapped blob is what actually gets written to disk.</p>
+    </div>
+  </li>
+  <li class="flex gap-4 bg-surface border border-edge rounded-xl p-4">
+    <span class="font-mono text-xs text-accent w-6 shrink-0 pt-0.5">04</span>
+    <div>
+      <p class="text-sm font-medium text-ink mb-0.5">Destroy the original plaintext key</p>
+      <p class="text-sm text-muted leading-relaxed">Only the unreadable wrapped version survives. Without the matching private key, it cannot be reversed.</p>
+    </div>
+  </li>
+</ol>
+
+<div class="bg-surface2 border border-accent/25 rounded-xl p-5 my-8">
+  <div class="flex gap-3">
+    <i data-lucide="lightbulb" class="w-[18px] h-[18px] text-accent shrink-0 mt-0.5"></i>
+    <p class="text-sm text-slate-300 leading-relaxed">The malware itself never carries a decryption key — only a <strong class="text-ink">public</strong> key, which can lock but never unlock. That's precisely why decryptor tools rarely exist for well-implemented ransomware: without the attacker's private key, a correctly generated AES key is not recoverable by brute force.</p>
+  </div>
+</div>
+
+<!-- Widget 1: Hybrid Encryption Visualizer -- self-contained, see js/widgets/visualizer.js -->
+<div x-data="visualizer" class="mt-14 bg-surface border border-edge rounded-2xl overflow-hidden">
+  <div class="px-5 sm:px-6 py-4 border-b border-edge flex items-center justify-between flex-wrap gap-3">
+    <div class="flex items-center gap-2.5">
+      <i data-lucide="play-circle" class="w-[18px] h-[18px] text-accent"></i>
+      <div>
+        <h3 class="font-display font-semibold text-ink text-sm">Interactive: Hybrid Encryption Visualizer</h3>
+        <p class="text-xs text-muted">Watch a single file move through the four-stage attack sequence</p>
+      </div>
+    </div>
+    <div class="flex gap-2">
+      <button @click="resetVisualizer()" class="focus-ring text-xs font-medium px-3 py-1.5 rounded-md border border-edge text-muted hover:text-ink hover:border-faint transition-colors">Reset</button>
+      <button @click="runVisualizer()" :disabled="visualizerRunning" class="focus-ring text-xs font-semibold px-3.5 py-1.5 rounded-md bg-accent text-base hover:bg-accent-dim transition-colors disabled:opacity-50 flex items-center gap-1.5">
+        <i data-lucide="play" class="w-3.5 h-3.5"></i>
+        <span x-text="visualizerStep === 0 ? 'Run simulation' : (visualizerStep >= 4 ? 'Run again' : 'Running…')"></span>
+      </button>
+    </div>
+  </div>
+
+  <div class="p-5 sm:p-6">
+    <!-- Stage rail -->
+    <div class="flex items-center mb-8" role="list" aria-label="Encryption stages">
+      <template x-for="(s, i) in visualizerStages" :key="i">
+        <div class="flex items-center flex-1 last:flex-none">
+          <div class="flex flex-col items-center gap-2 shrink-0" role="listitem">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300"
+                 :class="visualizerStep > i ? 'bg-success/15 border-success text-success' : (visualizerStep === i+1 ? 'bg-accent/15 border-accent text-accent pulse-ring' : 'bg-surface2 border-edge text-muted')">
+              <span x-show="visualizerStep > i"><i data-lucide="check" class="w-4 h-4"></i></span>
+              <span x-show="visualizerStep <= i" class="text-xs font-mono" x-text="i+1"></span>
+            </div>
+            <span class="text-[10px] font-mono text-center w-20 leading-tight" :class="visualizerStep >= i+1 ? 'text-ink' : 'text-muted'" x-text="s.short"></span>
+          </div>
+          <div class="flex-1 h-0.5 mx-1.5 rounded transition-colors duration-300" :class="visualizerStep > i+1 ? 'bg-success/50' : 'bg-edge'" x-show="i < visualizerStages.length - 1"></div>
+        </div>
+      </template>
+    </div>
+
+    <!-- Stage detail -->
+    <div class="bg-base border border-edge rounded-xl p-5 min-h-[210px]">
+      <div x-show="visualizerStep === 0">
+        <div class="flex flex-col items-center justify-center text-center py-8 gap-2">
+          <i data-lucide="file-text" class="w-8 h-8 text-muted"></i>
+          <p class="text-sm text-muted">Press <strong class="text-ink">Run simulation</strong> to encrypt <span class="font-mono text-accent">quarterly_report.xlsx</span></p>
+        </div>
+      </div>
+
+      <div x-show="visualizerStep >= 1" x-cloak>
+        <div class="space-y-5">
+          <div class="flex items-start gap-3">
+            <i data-lucide="key-round" class="w-5 h-5 text-accent shrink-0 mt-0.5"></i>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm text-ink font-medium">1. Local AES-256 session key generated</p>
+              <p class="text-xs text-muted mb-1.5">Unique per victim, created in RAM, never touches disk in plaintext</p>
+              <p class="font-mono text-xs text-accent bg-accent/5 border border-accent/20 rounded px-2.5 py-1.5 break-all" x-text="visualizerStep >= 4 ? '████████████████████████████████' : keyDisplay"></p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3" x-show="visualizerStep >= 2">
+            <i data-lucide="file-lock-2" class="w-5 h-5 text-accent shrink-0 mt-0.5"></i>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm text-ink font-medium">2. File payload encrypted with that key</p>
+              <p class="text-xs text-muted mb-1.5">Every byte of <span class="font-mono">quarterly_report.xlsx</span> is transformed — fast enough to process an entire file server in minutes</p>
+              <p class="font-mono text-xs text-danger bg-danger/5 border border-danger/20 rounded px-2.5 py-1.5 break-all" x-text="cipherDisplay"></p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3" x-show="visualizerStep >= 3">
+            <i data-lucide="lock" class="w-5 h-5 text-success shrink-0 mt-0.5"></i>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm text-ink font-medium">3. AES key wrapped with attacker's RSA public key</p>
+              <p class="text-xs text-muted mb-1.5">Embedded in the binary at compile time — the wrapped blob is appended to the file, unreadable without the matching private key</p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-3" x-show="visualizerStep >= 4">
+            <i data-lucide="eraser" class="w-5 h-5 text-warn shrink-0 mt-0.5"></i>
+            <div class="min-w-0 flex-1">
+              <p class="text-sm text-ink font-medium">4. Original plaintext key purged from memory</p>
+              <p class="text-xs text-muted">This is the narrow window where memory forensics can still catch a plaintext key — see Module 5.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-12 flex justify-end">
+  <button @click="$store.shell.markComplete('module1'); $store.shell.navigateTo('module2')" class="focus-ring inline-flex items-center gap-2 text-sm font-semibold bg-accent text-base px-5 py-2.5 rounded-lg hover:bg-accent-dim transition-colors">
+    Mark complete &amp; continue <i data-lucide="arrow-right" class="w-4 h-4"></i>
+  </button>
+</div>
