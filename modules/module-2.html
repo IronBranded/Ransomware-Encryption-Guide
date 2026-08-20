@@ -1,0 +1,122 @@
+<p class="font-mono text-xs tracking-widest text-accent mb-3">CASE FILE 02 · IDENTIFICATION</p>
+<h1 class="font-display text-3xl sm:text-4xl font-bold text-ink mb-3">Identification &amp; Cryptographic Artifacts</h1>
+<p class="text-muted text-base mb-10 max-w-2xl">The physical evidence encryption leaves behind — before you know anything about which family did it.</p>
+
+<h2 class="font-display text-xl font-semibold text-ink mb-3">File system indicators</h2>
+<div class="prose-body">
+  <p><strong>Magic bytes.</strong> Every normal file type opens with a recognizable byte signature — a PDF begins with <span class="font-mono text-accent">%PDF</span>, a ZIP-based format (including <span class="font-mono">.docx</span> and <span class="font-mono">.xlsx</span>) begins with <span class="font-mono text-accent">50 4B 03 04</span>. Encryption overwrites that header with ciphertext, so the file's true type becomes unreadable to the OS. Many families also <strong>append</strong> a footer — a family marker, a victim ID, or the RSA-wrapped key blob itself — which is often the fastest way to fingerprint a sample without full reverse engineering.</p>
+  <p><strong>Extension strategy.</strong> Some families <em>append</em> an extension (<span class="font-mono">invoice.docx → invoice.docx.dlock</span>), leaving the original name and type as a clue. Others <em>rename entirely</em> to a random ID (<span class="font-mono">a8f3e91b7c.locked</span>), destroying that context — which pushes recovery efforts back onto MFT and USN Journal artifacts (Module 5).</p>
+  <p><strong>Ransom notes.</strong> Detection tooling often watches for a burst of near-identical small text files appearing across many directories inside a short window. Drop locations and naming conventions are themselves fingerprints — a plain <span class="font-mono">README.txt</span> in every folder reads very differently to a triage tool than <span class="font-mono">.dlock_readme.txt</span>. DeadLock takes this further: its note, <span class="font-mono text-accent">RECOVERY_CHAT.&lt;UID&gt;.html</span>, is a self-contained single-page application implementing encrypted chat, a leak-site browser, and a file browser — entirely client-side, with no backend to seize.</p>
+</div>
+
+<h2 class="font-display text-xl font-semibold text-ink mt-10 mb-3">Entropy analysis</h2>
+<div class="prose-body">
+  <p><strong>Shannon entropy</strong> measures how unpredictable a sequence of bytes is, on a scale of <span class="font-mono">0.0</span> to <span class="font-mono">8.0</span>. It's named for Claude Shannon, who defined it mathematically in 1948 as part of founding the field of information theory. The ceiling of 8.0 isn't arbitrary — a byte has 256 possible values, and log₂(256) = 8, so 8.0 bits is the theoretical maximum randomness a byte stream can carry.</p>
+  <p>Plaintext and structured formats show low-to-medium entropy because they're full of repetition — common letters, whitespace, predictable headers. Already-compressed data (ZIP, JPEG, MP3) sits higher, because compression's whole job is squeezing out redundancy. Properly encrypted data sits at the top of the scale — indistinguishable from random noise is a design goal of cryptography, not a side effect. DFIR tooling commonly flags anything sustained above <strong class="text-danger">~7.8</strong> as consistent with ciphertext, independent of which ransomware family produced it.</p>
+  <p class="text-xs text-muted">Using entropy this way — as a fast, family-agnostic red flag rather than a full analysis — was formally established by Lyda &amp; Hamrock's <a href="https://doi.org/10.1109/MSP.2007.48" target="_blank" rel="noopener noreferrer" class="text-accent hover:underline">"Using Entropy Analysis to Find Encrypted and Packed Malware"</a> (IEEE Security &amp; Privacy, 2007), still the field's standard reference nearly two decades later.</p>
+</div>
+
+<!-- Widget 2: Entropy & Magic Byte Inspector -- self-contained, see js/widgets/entropy.js -->
+<div x-data="entropyInspector" class="mt-10 bg-surface border border-edge rounded-2xl overflow-hidden">
+  <div class="px-5 sm:px-6 py-4 border-b border-edge">
+    <div class="flex items-center gap-2.5 mb-1">
+      <i data-lucide="scan-search" class="w-[18px] h-[18px] text-accent"></i>
+      <h3 class="font-display font-semibold text-ink text-sm">Interactive: Entropy &amp; Magic Byte Inspector</h3>
+    </div>
+    <p class="text-xs text-muted">Toggle between file states to see how the same 128-byte window reads under each</p>
+  </div>
+
+  <div class="p-5 sm:p-6">
+    <div class="flex flex-wrap gap-2 mb-6" role="tablist" aria-label="File state">
+      <template x-for="s in entropyStates" :key="s.id">
+        <button
+          @click="entropyState = s.id"
+          role="tab"
+          :aria-selected="entropyState === s.id"
+          class="focus-ring text-xs font-medium px-3.5 py-2 rounded-lg border transition-colors flex items-center gap-1.5"
+          :class="entropyState === s.id ? 'bg-accent/15 border-accent/50 text-accent' : 'bg-base border-edge text-muted hover:text-ink hover:border-faint'"
+        >
+          <i :data-lucide="s.icon" class="w-3.5 h-3.5"></i>
+          <span x-text="s.label"></span>
+        </button>
+      </template>
+    </div>
+
+    <div class="grid lg:grid-cols-5 gap-5">
+      <!-- Hex viewer -->
+      <div class="lg:col-span-3 bg-base border border-edge rounded-xl p-4 overflow-x-auto">
+        <p class="text-[10px] font-mono text-muted uppercase tracking-wide mb-2">Hex view · offset 0x0000</p>
+        <table class="font-mono text-[11px] leading-relaxed w-full min-w-[420px]">
+          <tbody>
+            <template x-for="(row, ri) in entropySample.hexRows" :key="ri">
+              <tr class="hover:bg-surface2/60">
+                <td class="text-muted pr-3 select-none" x-text="row.offset"></td>
+                <td class="text-slate-300 pr-3 tracking-wider" x-text="row.hex"></td>
+                <td class="text-muted border-l border-edge pl-3" x-text="row.ascii"></td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
+        <p class="text-[10px] text-muted mt-3 pt-3 border-t border-edge">Byte samples are synthetically generated for illustration; entropy below is calculated live from these exact bytes using the Shannon formula — not a hardcoded number.</p>
+      </div>
+
+      <!-- Entropy gauge + flags -->
+      <div class="lg:col-span-2 space-y-4">
+        <div class="bg-base border border-edge rounded-xl p-4">
+          <div class="flex items-baseline justify-between mb-2">
+            <span class="text-[10px] font-mono text-muted uppercase tracking-wide">Shannon entropy</span>
+            <span class="font-mono text-lg font-semibold" :class="entropySample.entropy > 7.8 ? 'text-danger' : (entropySample.entropy > 6.5 ? 'text-warn' : 'text-success')" x-text="entropySample.entropy.toFixed(3)"></span>
+          </div>
+          <div class="relative h-2.5 rounded-full bg-surface2 overflow-hidden mb-1.5">
+            <div class="absolute inset-y-0 left-0 rounded-full transition-all duration-500"
+                 :class="entropySample.entropy > 7.8 ? 'bg-danger' : (entropySample.entropy > 6.5 ? 'bg-warn' : 'bg-success')"
+                 :style="`width:${(entropySample.entropy/8*100)}%`"></div>
+          </div>
+          <div class="flex justify-between text-[9px] font-mono text-muted"><span>0.0</span><span>4.0</span><span>7.8</span><span>8.0</span></div>
+        </div>
+
+        <div class="bg-base border border-edge rounded-xl p-4">
+          <p class="text-[10px] font-mono text-muted uppercase tracking-wide mb-2">Header signature</p>
+          <p class="font-mono text-sm mb-1" :class="entropySample.magicOk ? 'text-success' : 'text-danger'" x-text="entropySample.magicHex"></p>
+          <p class="text-xs text-muted" x-text="entropySample.magicLabel"></p>
+        </div>
+
+        <div class="bg-base border border-edge rounded-xl p-4">
+          <p class="text-[10px] font-mono text-muted uppercase tracking-wide mb-2">Forensic flags</p>
+          <ul class="space-y-2">
+            <template x-for="(f, fi) in entropySample.flags" :key="fi">
+              <li class="flex items-start gap-2 text-xs">
+                <span class="shrink-0 mt-0.5 w-3.5 h-3.5">
+                  <span x-show="f.level==='ok'"><i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-success"></i></span>
+                  <span x-show="f.level==='warn'"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-warn"></i></span>
+                  <span x-show="f.level==='danger'"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-danger"></i></span>
+                </span>
+                <span class="text-slate-300 leading-snug" x-text="f.text"></span>
+              </li>
+            </template>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sliding window strip (intermittent only) -->
+    <div x-show="entropyState === 'intermittent'" x-cloak class="mt-5 bg-base border border-warn/30 rounded-xl p-4">
+      <p class="text-[10px] font-mono text-muted uppercase tracking-wide mb-3">Sliding-window entropy across full file — reveals the encrypt/skip pattern a header-only scan would miss</p>
+      <div class="flex h-8 rounded-md overflow-hidden gap-px" aria-hidden="true">
+        <template x-for="(w, wi) in entropySample.windowStrip" :key="wi">
+          <div class="flex-1" :style="`background:${w.color}`" :title="'window ' + wi + ': ' + w.value.toFixed(2)"></div>
+        </template>
+      </div>
+      <div class="flex justify-between text-[9px] font-mono text-muted mt-1.5"><span>start of file</span><span>end of file</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="mt-12 flex justify-between">
+  <button @click="$store.shell.navigateTo('module1')" class="focus-ring inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink px-4 py-2.5 rounded-lg transition-colors">
+    <i data-lucide="arrow-left" class="w-4 h-4"></i> Back
+  </button>
+  <button @click="$store.shell.markComplete('module2'); $store.shell.navigateTo('module3')" class="focus-ring inline-flex items-center gap-2 text-sm font-semibold bg-accent text-base px-5 py-2.5 rounded-lg hover:bg-accent-dim transition-colors">
+    Mark complete &amp; continue <i data-lucide="arrow-right" class="w-4 h-4"></i>
+  </button>
+</div>
